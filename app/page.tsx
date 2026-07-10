@@ -7,12 +7,14 @@ interface Source {
   pageNumber: number | null;
 }
 
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-  sources?: Source[];
-  error?: boolean;
+interface Segment {
+  type: "grounded" | "external";
+  text: string;
 }
+
+type Message =
+  | { role: "user"; content: string }
+  | { role: "assistant"; segments: Segment[]; sources?: Source[]; error?: boolean };
 
 function parseSSEChunk(
   buffer: string,
@@ -33,18 +35,44 @@ function parseSSEChunk(
   return remainder;
 }
 
+function appendSegment(
+  m: Extract<Message, { role: "assistant" }>,
+  type: Segment["type"],
+  text: string
+): Extract<Message, { role: "assistant" }> {
+  const last = m.segments[m.segments.length - 1];
+  if (last && last.type === type) {
+    return { ...m, segments: [...m.segments.slice(0, -1), { ...last, text: last.text + text }] };
+  }
+  return { ...m, segments: [...m.segments, { type, text }] };
+}
+
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  function updateLastAssistant(
+    prev: Message[],
+    update: (
+      m: Extract<Message, { role: "assistant" }>
+    ) => Extract<Message, { role: "assistant" }>
+  ): Message[] {
+    if (prev.length === 0) return prev;
+    const last = prev[prev.length - 1];
+    if (last.role !== "assistant") return prev;
+    const copy = [...prev];
+    copy[copy.length - 1] = update(last);
+    return copy;
+  }
+
   async function sendMessage() {
     const question = input.trim();
     if (!question || isStreaming) return;
 
     const nextMessages: Message[] = [...messages, { role: "user", content: question }];
-    setMessages([...nextMessages, { role: "assistant", content: "" }]);
+    setMessages([...nextMessages, { role: "assistant", segments: [] }]);
     setInput("");
     setIsStreaming(true);
 
@@ -61,7 +89,13 @@ export default function Home() {
           res.status === 429
             ? "You're sending messages a bit fast — please wait a few seconds and try again."
             : (body?.error ?? "Something went wrong reaching the server. Please try again.");
-        setMessages((prev) => updateLast(prev, (m) => ({ ...m, content: message, error: true })));
+        setMessages((prev) =>
+          updateLastAssistant(prev, (m) => ({
+            ...m,
+            segments: [{ type: "grounded", text: message }],
+            error: true,
+          }))
+        );
         return;
       }
 
@@ -77,14 +111,24 @@ export default function Home() {
         buffer += decoder.decode(value, { stream: true });
         buffer = parseSSEChunk(buffer, (event, data) => {
           if (event === "sources") {
-            setMessages((prev) => updateLast(prev, (m) => ({ ...m, sources: data as Source[] })));
+            setMessages((prev) =>
+              updateLastAssistant(prev, (m) => ({ ...m, sources: data as Source[] }))
+            );
           } else if (event === "token") {
             setMessages((prev) =>
-              updateLast(prev, (m) => ({ ...m, content: m.content + (data as string) }))
+              updateLastAssistant(prev, (m) => appendSegment(m, "grounded", data as string))
+            );
+          } else if (event === "external_token") {
+            setMessages((prev) =>
+              updateLastAssistant(prev, (m) => appendSegment(m, "external", data as string))
             );
           } else if (event === "error") {
             setMessages((prev) =>
-              updateLast(prev, (m) => ({ ...m, content: data as string, error: true }))
+              updateLastAssistant(prev, (m) => ({
+                ...m,
+                segments: [{ type: "grounded", text: data as string }],
+                error: true,
+              }))
             );
           }
         });
@@ -92,22 +136,17 @@ export default function Home() {
       }
     } catch {
       setMessages((prev) =>
-        updateLast(prev, (m) => ({
+        updateLastAssistant(prev, (m) => ({
           ...m,
-          content: "Something went wrong reaching the server. Please try again.",
+          segments: [
+            { type: "grounded", text: "Something went wrong reaching the server. Please try again." },
+          ],
           error: true,
         }))
       );
     } finally {
       setIsStreaming(false);
     }
-  }
-
-  function updateLast(prev: Message[], update: (m: Message) => Message): Message[] {
-    if (prev.length === 0) return prev;
-    const copy = [...prev];
-    copy[copy.length - 1] = update(copy[copy.length - 1]);
-    return copy;
   }
 
   return (
@@ -128,20 +167,45 @@ export default function Home() {
           </p>
         )}
         {messages.map((m, i) => (
-          <div key={i} className={m.role === "user" ? "self-end" : "self-start"}>
-            <div
-              className={`max-w-xl whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                m.role === "user"
-                  ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                  : m.error
-                    ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
-                    : "bg-white text-zinc-800 shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-900 dark:text-zinc-100 dark:ring-zinc-800"
-              }`}
-            >
-              {m.content || (isStreaming && i === messages.length - 1 ? "…" : "")}
-            </div>
-            {m.sources && m.sources.length > 0 && (
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
+          <div key={i} className={`flex flex-col gap-2 ${m.role === "user" ? "items-end" : "items-start"}`}>
+            {m.role === "user" ? (
+              <div className="max-w-xl whitespace-pre-wrap rounded-2xl bg-zinc-900 px-4 py-2.5 text-sm leading-relaxed text-white dark:bg-zinc-100 dark:text-zinc-900">
+                {m.content}
+              </div>
+            ) : m.segments.length > 0 ? (
+              m.segments.map((seg, j) =>
+                seg.type === "external" ? (
+                  <div
+                    key={j}
+                    className="max-w-xl rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 dark:border-indigo-900 dark:bg-indigo-950/40"
+                  >
+                    <p className="mb-1.5 text-xs font-medium tracking-wide text-indigo-500 uppercase dark:text-indigo-400">
+                      Beyond your textbook
+                    </p>
+                    <div className="text-sm leading-relaxed whitespace-pre-wrap text-indigo-950 dark:text-indigo-100">
+                      {seg.text}
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    key={j}
+                    className={`max-w-xl whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                      m.error
+                        ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+                        : "bg-white text-zinc-800 shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-900 dark:text-zinc-100 dark:ring-zinc-800"
+                    }`}
+                  >
+                    {seg.text}
+                  </div>
+                )
+              )
+            ) : (
+              <div className="max-w-xl rounded-2xl bg-white px-4 py-2.5 text-sm leading-relaxed text-zinc-800 shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-900 dark:text-zinc-100 dark:ring-zinc-800">
+                {isStreaming && i === messages.length - 1 ? "…" : ""}
+              </div>
+            )}
+            {m.role === "assistant" && m.sources && m.sources.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
                 {m.sources.map((s, j) => (
                   <span
                     key={j}

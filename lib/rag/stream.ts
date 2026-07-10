@@ -6,6 +6,7 @@ export function sseStream(
   produce: (controller: {
     sendSources: (sources: { chapter: string; pageNumber: number | null }[]) => void;
     sendToken: (text: string) => void;
+    sendExternalToken: (text: string) => void;
     sendError: (message: string) => void;
   }) => Promise<void>
 ): ReadableStream<Uint8Array> {
@@ -18,6 +19,7 @@ export function sseStream(
         await produce({
           sendSources: (sources) => enqueue(sseEvent("sources", sources)),
           sendToken: (text) => enqueue(sseEvent("token", text)),
+          sendExternalToken: (text) => enqueue(sseEvent("external_token", text)),
           sendError: (message) => enqueue(sseEvent("error", message)),
         });
         enqueue(sseEvent("done", {}));

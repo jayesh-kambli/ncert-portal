@@ -4,6 +4,7 @@ import { retrieveChunks } from "@/lib/rag/retrieve";
 import { SYSTEM_PROMPT } from "@/lib/rag/prompt";
 import { sseStream } from "@/lib/rag/stream";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { createTagStreamParser } from "@/lib/rag/tag-stream-parser";
 
 export const dynamic = "force-dynamic";
 
@@ -83,8 +84,12 @@ export async function POST(request: Request) {
     { role: "user", content: latest.content },
   ];
 
-  const stream = sseStream(async ({ sendSources, sendToken }) => {
+  const stream = sseStream(async ({ sendSources, sendToken, sendExternalToken }) => {
     const allSources = new Map<string, Source>();
+    const tagParser = createTagStreamParser((mode, text) => {
+      if (mode === "external") sendExternalToken(text);
+      else sendToken(text);
+    });
 
     for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
       const completion = await getOpenAI().chat.completions.create({
@@ -104,7 +109,7 @@ export async function POST(request: Request) {
 
         if (delta?.content) {
           assistantContent += delta.content;
-          sendToken(delta.content);
+          tagParser.feed(delta.content);
         }
 
         for (const tc of delta?.tool_calls ?? []) {
@@ -118,6 +123,7 @@ export async function POST(request: Request) {
 
       if (toolCalls.size === 0 || finishReason !== "tool_calls") {
         // Model produced a final answer — already streamed live above.
+        tagParser.flush();
         return;
       }
 
@@ -145,6 +151,7 @@ export async function POST(request: Request) {
       sendSources([...allSources.values()]);
     }
 
+    tagParser.flush();
     sendToken(
       "Sorry, I'm having trouble finding a clear answer for that right now — could you try rephrasing?"
     );
