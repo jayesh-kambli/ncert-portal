@@ -55,6 +55,16 @@ export default function Home() {
         body: JSON.stringify({ messages: nextMessages }),
       });
 
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        const message =
+          res.status === 429
+            ? "You're sending messages a bit fast — please wait a few seconds and try again."
+            : (body?.error ?? "Something went wrong reaching the server. Please try again.");
+        setMessages((prev) => updateLast(prev, (m) => ({ ...m, content: message, error: true })));
+        return;
+      }
+
       if (!res.body) throw new Error("No response body");
 
       const reader = res.body.getReader();
