@@ -172,36 +172,37 @@ export default function Home() {
               <div className="max-w-xl whitespace-pre-wrap rounded-2xl bg-zinc-900 px-4 py-2.5 text-sm leading-relaxed text-white dark:bg-zinc-100 dark:text-zinc-900">
                 {m.content}
               </div>
-            ) : m.segments.length > 0 ? (
-              m.segments.map((seg, j) =>
-                seg.type === "external" ? (
-                  <div
-                    key={j}
-                    className="max-w-xl rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 dark:border-indigo-900 dark:bg-indigo-950/40"
-                  >
-                    <p className="mb-1.5 text-xs font-medium tracking-wide text-indigo-500 uppercase dark:text-indigo-400">
-                      Beyond your textbook
-                    </p>
-                    <div className="text-sm leading-relaxed whitespace-pre-wrap text-indigo-950 dark:text-indigo-100">
-                      {seg.text}
-                    </div>
-                  </div>
-                ) : (
-                  <div
-                    key={j}
-                    className={`max-w-xl whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                      m.error
-                        ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
-                        : "bg-white text-zinc-800 shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-900 dark:text-zinc-100 dark:ring-zinc-800"
-                    }`}
-                  >
-                    {seg.text}
-                  </div>
-                )
-              )
             ) : (
-              <div className="max-w-xl rounded-2xl bg-white px-4 py-2.5 text-sm leading-relaxed text-zinc-800 shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-900 dark:text-zinc-100 dark:ring-zinc-800">
-                {isStreaming && i === messages.length - 1 ? "…" : ""}
+              <div
+                className={`max-w-xl rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                  m.error
+                    ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+                    : "bg-white text-zinc-800 shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-900 dark:text-zinc-100 dark:ring-zinc-800"
+                }`}
+              >
+                {m.segments.length === 0 ? (
+                  isStreaming && i === messages.length - 1 ? "…" : ""
+                ) : (
+                  m.segments.map((seg, j) =>
+                    seg.type === "external" ? (
+                      <div
+                        key={j}
+                        className="my-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 first:mt-0 last:mb-0 dark:border-zinc-700 dark:bg-zinc-800/60"
+                      >
+                        <p className="mb-1 text-[11px] font-medium tracking-wide text-zinc-400 uppercase dark:text-zinc-500">
+                          Beyond your textbook
+                        </p>
+                        <div className="whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">
+                          {seg.text}
+                        </div>
+                      </div>
+                    ) : (
+                      <span key={j} className="whitespace-pre-wrap">
+                        {seg.text}
+                      </span>
+                    )
+                  )
+                )}
               </div>
             )}
             {m.role === "assistant" && m.sources && m.sources.length > 0 && (
