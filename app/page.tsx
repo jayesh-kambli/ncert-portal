@@ -47,6 +47,16 @@ function appendSegment(
   return { ...m, segments: [...m.segments, { type, text }] };
 }
 
+// Assistant messages carry `segments` for rendering, not a flat `content`
+// string — the API only needs plain text for conversation history, so
+// flatten segments back into one string here. Without this, JSON.stringify
+// silently drops the (nonexistent) `content` field on assistant messages,
+// and the API rejects the resulting null content.
+function toApiMessage(m: Message): { role: "user" | "assistant"; content: string } {
+  if (m.role === "user") return { role: "user", content: m.content };
+  return { role: "assistant", content: m.segments.map((s) => s.text).join("") };
+}
+
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -80,7 +90,7 @@ export default function Home() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: nextMessages }),
+        body: JSON.stringify({ messages: nextMessages.map(toApiMessage) }),
       });
 
       if (!res.ok) {
