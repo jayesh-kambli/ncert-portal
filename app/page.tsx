@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { Markdown } from "./components/Markdown";
 
 interface Source {
   chapter: string;
@@ -160,59 +161,55 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col flex-1 bg-zinc-50 dark:bg-black">
-      <header className="border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-black">
-        <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+    <div className="flex h-full min-h-0 flex-1 flex-col bg-background">
+      <header className="shrink-0 border-b border-surface-border px-4 py-3 sm:px-6 sm:py-4">
+        <h1 className="text-[15px] font-medium text-foreground sm:text-base">
           NCERT Class 10 Science Tutor
         </h1>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="text-xs text-foreground/55 sm:text-sm">
           Ask a question from the Class 10 Science textbook.
         </p>
       </header>
 
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 overflow-y-auto px-6 py-6">
+      <main className="mx-auto flex w-full min-h-0 max-w-2xl flex-1 flex-col gap-6 overflow-x-hidden overflow-y-auto px-4 py-6 sm:gap-8 sm:px-6 sm:py-8">
         {messages.length === 0 && (
-          <p className="mt-10 text-center text-sm text-zinc-400">
+          <p className="mt-10 text-center text-sm text-foreground/40">
             Try asking: &ldquo;What is photosynthesis?&rdquo;
           </p>
         )}
         {messages.map((m, i) => (
-          <div key={i} className={`flex flex-col gap-2 ${m.role === "user" ? "items-end" : "items-start"}`}>
+          <div key={i} className={`flex flex-col gap-2.5 ${m.role === "user" ? "items-end" : "items-start"}`}>
             {m.role === "user" ? (
-              <div className="max-w-xl whitespace-pre-wrap rounded-2xl bg-zinc-900 px-4 py-2.5 text-sm leading-relaxed text-white dark:bg-zinc-100 dark:text-zinc-900">
+              <div className="max-w-[85%] rounded-2xl bg-surface px-4 py-2.5 text-[15px] leading-relaxed break-words whitespace-pre-wrap text-foreground sm:max-w-lg">
                 {m.content}
               </div>
             ) : (
               <div
-                className={`max-w-xl rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                  m.error
-                    ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
-                    : "bg-white text-zinc-800 shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-900 dark:text-zinc-100 dark:ring-zinc-800"
+                className={`w-full min-w-0 text-[15px] leading-7 ${
+                  m.error ? "text-red-600 dark:text-red-400" : "text-foreground"
                 }`}
               >
-                {m.segments.length === 0 ? (
-                  isStreaming && i === messages.length - 1 ? "…" : ""
-                ) : (
-                  m.segments.map((seg, j) =>
-                    seg.type === "external" ? (
-                      <div
-                        key={j}
-                        className="my-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 first:mt-0 last:mb-0 dark:border-zinc-700 dark:bg-zinc-800/60"
-                      >
-                        <p className="mb-1 text-[11px] font-medium tracking-wide text-zinc-400 uppercase dark:text-zinc-500">
-                          Beyond your textbook
-                        </p>
-                        <div className="whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">
-                          {seg.text}
-                        </div>
-                      </div>
-                    ) : (
-                      <span key={j} className="whitespace-pre-wrap">
-                        {seg.text}
-                      </span>
+                {m.segments.length === 0
+                  ? isStreaming && i === messages.length - 1 && (
+                      <span className="text-foreground/40">…</span>
                     )
-                  )
-                )}
+                  : m.segments.map((seg, j) =>
+                      seg.type === "external" ? (
+                        <div
+                          key={j}
+                          className="my-3 rounded-xl border border-surface-border bg-surface px-4 py-3"
+                        >
+                          <p className="mb-1 text-[11px] font-medium tracking-wide text-foreground/45 uppercase">
+                            Beyond your textbook
+                          </p>
+                          <div className="text-foreground/85">
+                            <Markdown>{seg.text}</Markdown>
+                          </div>
+                        </div>
+                      ) : (
+                        <Markdown key={j}>{seg.text}</Markdown>
+                      )
+                    )}
               </div>
             )}
             {m.role === "assistant" && m.sources && m.sources.length > 0 && (
@@ -220,7 +217,7 @@ export default function Home() {
                 {m.sources.map((s, j) => (
                   <span
                     key={j}
-                    className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                    className="rounded-full border border-surface-border bg-surface px-2.5 py-0.5 text-xs text-foreground/55"
                   >
                     {s.chapter}
                     {s.pageNumber != null ? ` · p.${s.pageNumber}` : ""}
@@ -233,16 +230,16 @@ export default function Home() {
         <div ref={bottomRef} />
       </main>
 
-      <footer className="border-t border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-black">
+      <footer className="shrink-0 px-4 py-4 sm:px-6 sm:py-5">
         <form
-          className="mx-auto flex max-w-3xl items-end gap-2"
+          className="mx-auto flex max-w-2xl items-end gap-2 rounded-3xl border border-surface-border bg-surface px-3 py-2 focus-within:border-accent/50"
           onSubmit={(e) => {
             e.preventDefault();
             sendMessage();
           }}
         >
           <textarea
-            className="flex-1 resize-none rounded-xl border border-zinc-300 bg-white px-3.5 py-2.5 text-sm text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+            className="max-h-40 min-w-0 flex-1 resize-none bg-transparent px-2 py-2 text-[15px] text-foreground outline-none placeholder:text-foreground/40"
             rows={1}
             placeholder="Ask a question about Class 10 Science..."
             value={input}
@@ -257,10 +254,19 @@ export default function Home() {
           />
           <button
             type="submit"
+            aria-label="Send message"
             disabled={isStreaming || !input.trim()}
-            className="rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground transition-opacity disabled:opacity-30"
           >
-            Send
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path
+                d="M8 13V3M8 3L3.5 7.5M8 3l4.5 4.5"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </button>
         </form>
       </footer>
