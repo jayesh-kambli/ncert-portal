@@ -17,7 +17,15 @@ export function getOpenAI(): OpenAI {
 
 export const EMBEDDING_MODEL = "text-embedding-3-small";
 export const EMBEDDING_DIMENSIONS = 1536;
-export const CHAT_MODEL = "gpt-4o-mini";
+
+// gpt-4o drives the conversation itself, including deciding *when* to
+// search the textbook (via tool-calling) — that decision needs real
+// judgment (e.g. recognizing "are you sure?" as a follow-up rather than a
+// new topic), so it isn't split into a separate cheap "planning" call.
+// The cheap tier (mini) is used where judgment isn't required: embeddings
+// for retrieval. That split is where the cost/quality tradeoff actually
+// pays off, rather than between two chat models doing the same kind of work.
+export const CHAT_MODEL = "gpt-4o";
 
 export async function embedTexts(texts: string[]): Promise<number[][]> {
   const res = await getOpenAI().embeddings.create({
