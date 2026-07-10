@@ -2,6 +2,9 @@
   "name": "ncert-portal",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "cross-env NODE_OPTIONS=--use-system-ca next dev",
     "build": "next build",

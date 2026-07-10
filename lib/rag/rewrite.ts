@@ -1,4 +1,4 @@
-import { openai, CHAT_MODEL } from "../openai";
+import { getOpenAI, CHAT_MODEL } from "../openai";
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -20,7 +20,7 @@ export async function contextualizeQuery(
     .map((m) => `${m.role === "user" ? "Student" : "Assistant"}: ${m.content}`)
     .join("\n");
 
-  const response = await openai.chat.completions.create({
+  const response = await getOpenAI().chat.completions.create({
     model: CHAT_MODEL,
     temperature: 0,
     messages: [

@@ -1,4 +1,4 @@
-import { openai, CHAT_MODEL } from "@/lib/openai";
+import { getOpenAI, CHAT_MODEL } from "@/lib/openai";
 import { retrieveChunks } from "@/lib/rag/retrieve";
 import { contextualizeQuery, type ChatMessage } from "@/lib/rag/rewrite";
 import { SYSTEM_PROMPT, buildUserPrompt } from "@/lib/rag/prompt";
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     const sources = dedupeSources(retrieved);
     sendSources(sources);
 
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: CHAT_MODEL,
       stream: true,
       messages: [
