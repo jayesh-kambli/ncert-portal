@@ -4,6 +4,13 @@ import { useRef, useState } from "react";
 import { Markdown } from "./components/Markdown";
 import { CLASSES, SUBJECTS } from "@/lib/subjects";
 
+const SUBJECT_EMOJI: Record<string, string> = {
+  Mathematics: "📐",
+  Science: "🔬",
+  "Social Science": "🌍",
+  English: "📖",
+};
+
 interface Source {
   chapter: string;
   pageNumber: number | null;
@@ -176,7 +183,7 @@ export default function Home() {
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col bg-background">
       <header className="shrink-0 border-b border-surface-border px-4 py-3 sm:px-6 sm:py-4">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-[15px] font-medium text-foreground sm:text-base">
               NCERT Study Tutor
@@ -185,31 +192,43 @@ export default function Home() {
               Ask a question from the {subject} textbook.
             </p>
           </div>
-          <div className="flex shrink-0 gap-1.5">
-            <select
-              value={studentClass}
-              onChange={(e) => changeSelection(Number(e.target.value), subject)}
-              aria-label="Class"
-              className="rounded-lg border border-surface-border bg-surface px-2 py-1.5 text-xs text-foreground outline-none sm:text-sm"
-            >
+
+          <div className="flex flex-col gap-2 sm:items-end">
+            <div className="flex flex-wrap gap-1.5 sm:justify-end">
               {CLASSES.map((c) => (
-                <option key={c} value={c}>
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => changeSelection(c, subject)}
+                  aria-pressed={c === studentClass}
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
+                    c === studentClass
+                      ? "bg-accent text-accent-foreground"
+                      : "bg-surface text-foreground/60 hover:text-foreground"
+                  }`}
+                >
                   Class {c}
-                </option>
+                </button>
               ))}
-            </select>
-            <select
-              value={subject}
-              onChange={(e) => changeSelection(studentClass, e.target.value)}
-              aria-label="Subject"
-              className="rounded-lg border border-surface-border bg-surface px-2 py-1.5 text-xs text-foreground outline-none sm:text-sm"
-            >
+            </div>
+            <div className="flex flex-wrap gap-1.5 sm:justify-end">
               {SUBJECTS.map((s) => (
-                <option key={s} value={s}>
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => changeSelection(studentClass, s)}
+                  aria-pressed={s === subject}
+                  className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
+                    s === subject
+                      ? "bg-accent text-accent-foreground"
+                      : "bg-surface text-foreground/60 hover:text-foreground"
+                  }`}
+                >
+                  <span aria-hidden="true">{SUBJECT_EMOJI[s]}</span>
                   {s}
-                </option>
+                </button>
               ))}
-            </select>
+            </div>
           </div>
         </div>
       </header>
