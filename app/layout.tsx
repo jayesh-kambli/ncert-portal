@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NCERT Class 10 Science Tutor",
-  description: "Ask questions about the Class 10 Science NCERT textbook.",
+  title: "NCERT Study Tutor",
+  description: "Ask questions about your NCERT textbook, Classes 7-10.",
 };
 
 export default function RootLayout({

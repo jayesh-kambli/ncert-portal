@@ -2,9 +2,10 @@ import { mkdir, writeFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 import { Agent, setGlobalDispatcher } from "undici";
-import { BOOK_CODE, CHAPTER_COUNT, PDF_DIR } from "./config";
+import { INGEST_TARGETS, PDF_DIR } from "./config";
 
 const BASE_URL = "https://ncert.nic.in/textbook/pdf";
+const MAX_CHAPTERS_PER_BOOK = 30;
 
 // Local network middleboxes (AV/corporate proxy) intercept TLS to
 // ncert.nic.in and break standard certificate validation (confirmed via
@@ -14,18 +15,19 @@ const BASE_URL = "https://ncert.nic.in/textbook/pdf";
 // only (a one-shot ingestion script), not the Next.js app.
 setGlobalDispatcher(new Agent({ connect: { rejectUnauthorized: false } }));
 
-async function downloadChapter(chapterNumber: number) {
+async function downloadChapter(bookCode: string, chapterNumber: number): Promise<boolean> {
   const padded = String(chapterNumber).padStart(2, "0");
-  const fileName = `${BOOK_CODE}${padded}.pdf`;
+  const fileName = `${bookCode}${padded}.pdf`;
   const destPath = path.join(PDF_DIR, fileName);
 
   if (existsSync(destPath)) {
     console.log(`skip (already downloaded): ${fileName}`);
-    return;
+    return true;
   }
 
   const url = `${BASE_URL}/${fileName}`;
   const res = await fetch(url);
+  if (res.status === 404) return false;
   if (!res.ok) {
     throw new Error(`Failed to download ${url}: HTTP ${res.status}`);
   }
@@ -33,16 +35,34 @@ async function downloadChapter(chapterNumber: number) {
   const buffer = Buffer.from(await res.arrayBuffer());
   await writeFile(destPath, buffer);
   console.log(`downloaded: ${fileName} (${buffer.byteLength} bytes)`);
+  return true;
+}
+
+async function downloadBook(bookCode: string): Promise<number> {
+  let count = 0;
+  for (let chapter = 1; chapter <= MAX_CHAPTERS_PER_BOOK; chapter++) {
+    const ok = await downloadChapter(bookCode, chapter);
+    if (!ok) break;
+    count++;
+  }
+  console.log(`${bookCode}: ${count} chapters`);
+  return count;
 }
 
 async function main() {
   await mkdir(PDF_DIR, { recursive: true });
 
-  for (let chapter = 1; chapter <= CHAPTER_COUNT; chapter++) {
-    await downloadChapter(chapter);
+  for (const target of INGEST_TARGETS) {
+    for (const bookCode of target.bookCodes) {
+      console.log(`\n== Class ${target.class} ${target.subject} — ${bookCode} ==`);
+      const count = await downloadBook(bookCode);
+      if (count === 0) {
+        console.warn(`WARNING: no chapters found for ${bookCode} (class ${target.class} ${target.subject}) — check the book code`);
+      }
+    }
   }
 
-  console.log(`Done. ${CHAPTER_COUNT} chapters available in ${PDF_DIR}`);
+  console.log(`\nDone.`);
 }
 
 main().catch((err) => {

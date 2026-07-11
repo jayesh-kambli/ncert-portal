@@ -1,7 +1,7 @@
-import { mkdir, readFile, writeFile } from "fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "fs/promises";
 import path from "path";
 import { PDFParse } from "pdf-parse";
-import { BOOK_CODE, CHAPTER_COUNT, PDF_DIR, TEXT_DIR } from "./config";
+import { PDF_DIR, TEXT_DIR } from "./config";
 
 interface ExtractedPage {
   pageNumber: number;
@@ -19,7 +19,8 @@ interface ExtractedChapter {
 const NOISE_LINE_PATTERNS = [/^reprint\s+\d{4}-\d{2}$/i, /^\s*\d+\s*$/];
 
 // The running page header (e.g. "Science\t82" or "Life Processes 83") is
-// always emitted as the first extracted line of a page's text.
+// always emitted as the first extracted line of a page's text — subject
+// name or chapter title, followed by a page number, no punctuation.
 const RUNNING_HEADER_RE = /^.{1,50}\s+\d{1,4}$/;
 
 // Some decorative section-heading pages render the same heading multiple
@@ -30,6 +31,17 @@ function collapseRepeatedSegments(line: string): string {
   if (parts.length < 2) return line;
   const allSame = parts.every((p) => p === parts[0]);
   return allSame ? parts[0] : line;
+}
+
+// Decorative heading fonts sometimes get extracted with every character
+// as its own space-separated token, e.g. "P o w e r - s h a r i n g"
+// instead of "Power-sharing" — collapse runs of single-character tokens
+// back into words.
+function collapseLetterSpacing(line: string): string {
+  const tokens = line.split(" ");
+  if (tokens.length < 4) return line;
+  if (!tokens.every((t) => t.length === 1)) return line;
+  return tokens.join("");
 }
 
 function cleanPageText(raw: string): string {
@@ -44,6 +56,7 @@ function cleanPageText(raw: string): string {
 
   return lines
     .map(collapseRepeatedSegments)
+    .map(collapseLetterSpacing)
     .filter((line) => !NOISE_LINE_PATTERNS.some((p) => p.test(line)))
     .join("\n");
 }
@@ -59,10 +72,36 @@ function extractTitle(firstPageLines: string[], chapterNumber: number): string {
   const markerIndex = firstPageLines.findIndex((line) =>
     markerRe.test(line.replace(/\t/g, " ").replace(/\s+/g, " ").trim())
   );
-  if (markerIndex === -1) return `Chapter ${chapterNumber}`;
 
-  // Running header: subject name + page number, e.g. "Science\t58".
-  const isRunningHeader = (line: string) => /^science\s*\t?\s*\d+$/i.test(line.trim());
+  if (markerIndex === -1) {
+    // Some books (e.g. newer NCF-aligned titles) don't render a distinct
+    // "CHAPTER N" sidebar marker at all — their opener page just starts
+    // with a short title line (sometimes wrapped across 2 lines), or
+    // straight into body prose. Only trust leading lines as a title if
+    // they look like standalone heading fragments (short, no
+    // sentence-ending punctuation); otherwise fall back rather than risk
+    // grabbing a sentence fragment as the "title".
+    const isTitleFragment = (line: string) => {
+      const cleaned = line.replace(/\t\d{1,4}$/, "").trim();
+      // Real chapter titles in these books run short (~15-25 chars); a
+      // wrapped sentence fragment can coincidentally avoid ending
+      // punctuation but tends to run longer before it wraps.
+      return cleaned.length > 0 && cleaned.length < 45 && !/[.,;:?!]$/.test(cleaned);
+    };
+
+    const collected: string[] = [];
+    for (let i = 0; i < Math.min(2, firstPageLines.length); i++) {
+      if (!isTitleFragment(firstPageLines[i])) break;
+      collected.push(firstPageLines[i].replace(/\t\d{1,4}$/, "").trim());
+    }
+
+    return collected.length > 0 ? collected.join(" ") : `Chapter ${chapterNumber}`;
+  }
+
+  // Running header: subject name + page number, e.g. "Mathematics\t58".
+  // Same shape as RUNNING_HEADER_RE, kept separate since here we only
+  // want to exclude it from *title* candidates, not strip it from content.
+  const isRunningHeader = (line: string) => RUNNING_HEADER_RE.test(line.trim());
   // Sidebar box labels that sometimes sit next to the title on opener
   // pages (e.g. "Activity 13.1") — not part of the chapter title.
   const isBoxLabel = (line: string) => /^activity\s+[\d.]+$/i.test(line.trim());
@@ -93,11 +132,11 @@ function extractTitle(firstPageLines: string[], chapterNumber: number): string {
   return titleLines.length > 0 ? titleLines.join(" ") : `Chapter ${chapterNumber}`;
 }
 
-async function extractChapter(chapterNumber: number) {
+async function extractChapter(bookCode: string, chapterNumber: number) {
   const padded = String(chapterNumber).padStart(2, "0");
-  const fileName = `${BOOK_CODE}${padded}.pdf`;
+  const fileName = `${bookCode}${padded}.pdf`;
   const pdfPath = path.join(PDF_DIR, fileName);
-  const outPath = path.join(TEXT_DIR, `${BOOK_CODE}${padded}.json`);
+  const outPath = path.join(TEXT_DIR, `${bookCode}${padded}.json`);
 
   const buffer = await readFile(pdfPath);
   const parser = new PDFParse({ data: buffer });
@@ -116,14 +155,39 @@ async function extractChapter(chapterNumber: number) {
   console.log(`extracted: ${fileName} -> "${title}" (${pages.length} pages)`);
 }
 
+async function listDownloadedBooks(): Promise<Map<string, number[]>> {
+  const files = await readdir(PDF_DIR);
+  const byBook = new Map<string, number[]>();
+
+  for (const file of files) {
+    const match = file.match(/^(.+?)(\d{2})\.pdf$/);
+    if (!match) continue;
+    const [, bookCode, chapterStr] = match;
+    const chapters = byBook.get(bookCode) ?? [];
+    chapters.push(Number(chapterStr));
+    byBook.set(bookCode, chapters);
+  }
+
+  return byBook;
+}
+
 async function main() {
   await mkdir(TEXT_DIR, { recursive: true });
 
-  for (let chapter = 1; chapter <= CHAPTER_COUNT; chapter++) {
-    await extractChapter(chapter);
+  const byBook = await listDownloadedBooks();
+  if (byBook.size === 0) {
+    throw new Error(`No downloaded PDFs found in ${PDF_DIR}. Run 'npm run ingest:download' first.`);
   }
 
-  console.log(`Done. Extracted ${CHAPTER_COUNT} chapters to ${TEXT_DIR}`);
+  for (const [bookCode, chapters] of byBook) {
+    chapters.sort((a, b) => a - b);
+    console.log(`\n== ${bookCode} (${chapters.length} chapters) ==`);
+    for (const chapter of chapters) {
+      await extractChapter(bookCode, chapter);
+    }
+  }
+
+  console.log(`\nDone. Extracted ${byBook.size} book(s) to ${TEXT_DIR}`);
 }
 
 main().catch((err) => {

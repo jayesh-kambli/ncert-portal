@@ -1,10 +1,11 @@
 import "dotenv/config";
 import { readFile, readdir } from "fs/promises";
 import path from "path";
+import { sql } from "drizzle-orm";
 import { db } from "../../lib/db/client";
 import { chunks as chunksTable, type NewChunk } from "../../lib/db/schema";
 import { embedTexts } from "../../lib/openai";
-import { TARGET_CLASS, TARGET_SUBJECT, TEXT_DIR } from "./config";
+import { INGEST_TARGETS, TEXT_DIR } from "./config";
 import { chunkText } from "./chunk";
 
 interface ExtractedPage {
@@ -20,22 +21,76 @@ interface ExtractedChapter {
 
 const EMBED_BATCH_SIZE = 100;
 
-async function loadChapters(): Promise<ExtractedChapter[]> {
-  const files = (await readdir(TEXT_DIR)).filter((f) => f.endsWith(".json"));
-  const chapters: ExtractedChapter[] = [];
-  for (const file of files) {
-    const raw = await readFile(path.join(TEXT_DIR, file), "utf-8");
-    chapters.push(JSON.parse(raw));
+const bookCodeToTarget = new Map<string, { class: number; subject: string }>();
+for (const target of INGEST_TARGETS) {
+  for (const bookCode of target.bookCodes) {
+    bookCodeToTarget.set(bookCode, { class: target.class, subject: target.subject });
   }
-  return chapters.sort((a, b) => a.chapterNumber - b.chapterNumber);
+}
+
+interface LoadedChapter extends ExtractedChapter {
+  bookCode: string;
+  class: number;
+  subject: string;
+}
+
+async function loadChapters(): Promise<LoadedChapter[]> {
+  const files = (await readdir(TEXT_DIR)).filter((f) => f.endsWith(".json"));
+  const chapters: LoadedChapter[] = [];
+
+  for (const file of files) {
+    const match = file.match(/^(.+?)(\d{2})\.json$/);
+    if (!match) continue;
+    const bookCode = match[1];
+    const target = bookCodeToTarget.get(bookCode);
+    if (!target) {
+      console.warn(`skip ${file}: book code "${bookCode}" not found in INGEST_TARGETS`);
+      continue;
+    }
+
+    const raw = await readFile(path.join(TEXT_DIR, file), "utf-8");
+    const chapter: ExtractedChapter = JSON.parse(raw);
+    chapters.push({ ...chapter, bookCode, class: target.class, subject: target.subject });
+  }
+
+  return chapters.sort(
+    (a, b) => a.class - b.class || a.subject.localeCompare(b.subject) || a.chapterNumber - b.chapterNumber
+  );
+}
+
+async function loadAlreadyIngestedChapters(): Promise<Set<string>> {
+  const rows = await db
+    .select({
+      class: chunksTable.class,
+      subject: chunksTable.subject,
+      chapter: chunksTable.chapter,
+    })
+    .from(chunksTable)
+    .groupBy(sql`${chunksTable.class}, ${chunksTable.subject}, ${chunksTable.chapter}`);
+  return new Set(rows.map((r) => `${r.class}::${r.subject}::${r.chapter}`));
 }
 
 async function main() {
-  const chapters = await loadChapters();
-  if (chapters.length === 0) {
+  const [allChapters, alreadyIngested] = await Promise.all([
+    loadChapters(),
+    loadAlreadyIngestedChapters(),
+  ]);
+  if (allChapters.length === 0) {
     throw new Error(
       `No extracted chapters found in ${TEXT_DIR}. Run 'npm run ingest:extract' first.`
     );
+  }
+
+  const chapters = allChapters.filter(
+    (c) => !alreadyIngested.has(`${c.class}::${c.subject}::${c.title}`)
+  );
+  const skipped = allChapters.length - chapters.length;
+  if (skipped > 0) {
+    console.log(`Skipping ${skipped} already-ingested chapter(s).`);
+  }
+  if (chapters.length === 0) {
+    console.log("Nothing new to ingest.");
+    process.exit(0);
   }
 
   type PendingChunk = Omit<NewChunk, "embedding">;
@@ -46,8 +101,8 @@ async function main() {
     for (const page of chapter.pages) {
       for (const content of chunkText(page.text)) {
         pending.push({
-          class: TARGET_CLASS,
-          subject: TARGET_SUBJECT,
+          class: chapter.class,
+          subject: chapter.subject,
           chapter: chapter.title,
           chapterNumber: chapter.chapterNumber,
           chunkIndex: chunkIndex++,

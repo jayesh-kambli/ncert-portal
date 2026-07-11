@@ -1,17 +1,13 @@
 import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions";
 import { getOpenAI, CHAT_MODEL } from "@/lib/openai";
 import { retrieveChunks } from "@/lib/rag/retrieve";
-import { SYSTEM_PROMPT } from "@/lib/rag/prompt";
+import { buildSystemPrompt } from "@/lib/rag/prompt";
 import { sseStream } from "@/lib/rag/stream";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { createTagStreamParser } from "@/lib/rag/tag-stream-parser";
+import { isAvailable } from "@/lib/subjects";
 
 export const dynamic = "force-dynamic";
-
-// MVP scope: single class/subject (see plan). Swap or make dynamic once
-// the portal covers more than Class 10 Science.
-const CLASS_FILTER = 10;
-const SUBJECT_FILTER = "Science";
 
 const MAX_HISTORY_MESSAGES = 20;
 const MAX_TOOL_ITERATIONS = 4;
@@ -23,6 +19,8 @@ interface IncomingMessage {
 
 interface ChatRequestBody {
   messages: IncomingMessage[];
+  class: number;
+  subject: string;
 }
 
 interface Source {
@@ -30,25 +28,26 @@ interface Source {
   pageNumber: number | null;
 }
 
-const SEARCH_TOOL: ChatCompletionTool = {
-  type: "function",
-  function: {
-    name: "search_textbook",
-    description:
-      "Search the student's Class 10 Science NCERT textbook for passages relevant to a specific question, topic, or example. Returns the most relevant excerpts found, or none if nothing matches.",
-    parameters: {
-      type: "object",
-      properties: {
-        query: {
-          type: "string",
-          description:
-            "A focused search query describing exactly what information is needed — a concept, definition, process, or example.",
+function buildSearchTool(studentClass: number, subject: string): ChatCompletionTool {
+  return {
+    type: "function",
+    function: {
+      name: "search_textbook",
+      description: `Search the student's Class ${studentClass} ${subject} NCERT textbook for passages relevant to a specific question, topic, or example. Returns the most relevant excerpts found, or none if nothing matches.`,
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description:
+              "A focused search query describing exactly what information is needed — a concept, definition, process, or example.",
+          },
         },
+        required: ["query"],
       },
-      required: ["query"],
     },
-  },
-};
+  };
+}
 
 export async function POST(request: Request) {
   const rateLimit = checkRateLimit(getClientIp(request));
@@ -67,6 +66,15 @@ export async function POST(request: Request) {
 
   const body = (await request.json()) as ChatRequestBody;
   const incoming = body.messages ?? [];
+  const studentClass = body.class;
+  const subject = body.subject;
+
+  if (!isAvailable(studentClass, subject)) {
+    return new Response(
+      JSON.stringify({ error: "Please select a valid class and subject." }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
+  }
 
   const latest = incoming[incoming.length - 1];
   if (!latest || latest.role !== "user" || !latest.content?.trim()) {
@@ -79,10 +87,12 @@ export async function POST(request: Request) {
   const history = incoming.slice(0, -1).slice(-MAX_HISTORY_MESSAGES);
 
   const conversation: ChatCompletionMessageParam[] = [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: buildSystemPrompt(studentClass, subject) },
     ...history.map((m) => ({ role: m.role, content: m.content }) as ChatCompletionMessageParam),
     { role: "user", content: latest.content },
   ];
+
+  const searchTool = buildSearchTool(studentClass, subject);
 
   const stream = sseStream(async ({ sendSources, sendToken, sendExternalToken }) => {
     const allSources = new Map<string, Source>();
@@ -96,7 +106,7 @@ export async function POST(request: Request) {
         model: CHAT_MODEL,
         stream: true,
         messages: conversation,
-        tools: [SEARCH_TOOL],
+        tools: [searchTool],
       });
 
       let assistantContent = "";
@@ -140,7 +150,7 @@ export async function POST(request: Request) {
       });
 
       for (const tc of orderedCalls) {
-        const result = await runTool(tc.name, tc.arguments, allSources);
+        const result = await runTool(tc.name, tc.arguments, allSources, studentClass, subject);
         conversation.push({
           role: "tool",
           tool_call_id: tc.id,
@@ -169,7 +179,9 @@ export async function POST(request: Request) {
 async function runTool(
   name: string,
   rawArgs: string,
-  allSources: Map<string, Source>
+  allSources: Map<string, Source>,
+  studentClass: number,
+  subject: string
 ): Promise<string> {
   if (name !== "search_textbook") {
     return JSON.stringify({ error: `Unknown tool: ${name}` });
@@ -185,7 +197,7 @@ async function runTool(
     return JSON.stringify({ error: "Missing query" });
   }
 
-  const results = await retrieveChunks(query, { class: CLASS_FILTER, subject: SUBJECT_FILTER });
+  const results = await retrieveChunks(query, { class: studentClass, subject });
 
   for (const chunk of results) {
     const key = `${chunk.chapter}::${chunk.pageNumber}`;

@@ -43,3 +43,6 @@ next-env.d.ts
 
 # ingestion artifacts
 /data/
+
+# playwright test/debug artifacts
+/.playwright-mcp/

@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Markdown } from "./components/Markdown";
+import { CLASSES, SUBJECTS } from "@/lib/subjects";
 
 interface Source {
   chapter: string;
@@ -59,10 +60,18 @@ function toApiMessage(m: Message): { role: "user" | "assistant"; content: string
 }
 
 export default function Home() {
+  const [studentClass, setStudentClass] = useState(10);
+  const [subject, setSubject] = useState<string>("Science");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  function changeSelection(nextClass: number, nextSubject: string) {
+    setStudentClass(nextClass);
+    setSubject(nextSubject);
+    setMessages([]); // history from a different class/subject would confuse the model
+  }
 
   function updateLastAssistant(
     prev: Message[],
@@ -91,7 +100,11 @@ export default function Home() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: nextMessages.map(toApiMessage) }),
+        body: JSON.stringify({
+          messages: nextMessages.map(toApiMessage),
+          class: studentClass,
+          subject,
+        }),
       });
 
       if (!res.ok) {
@@ -163,18 +176,48 @@ export default function Home() {
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col bg-background">
       <header className="shrink-0 border-b border-surface-border px-4 py-3 sm:px-6 sm:py-4">
-        <h1 className="text-[15px] font-medium text-foreground sm:text-base">
-          NCERT Class 10 Science Tutor
-        </h1>
-        <p className="text-xs text-foreground/55 sm:text-sm">
-          Ask a question from the Class 10 Science textbook.
-        </p>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h1 className="text-[15px] font-medium text-foreground sm:text-base">
+              NCERT Study Tutor
+            </h1>
+            <p className="text-xs text-foreground/55 sm:text-sm">
+              Ask a question from the {subject} textbook.
+            </p>
+          </div>
+          <div className="flex shrink-0 gap-1.5">
+            <select
+              value={studentClass}
+              onChange={(e) => changeSelection(Number(e.target.value), subject)}
+              aria-label="Class"
+              className="rounded-lg border border-surface-border bg-surface px-2 py-1.5 text-xs text-foreground outline-none sm:text-sm"
+            >
+              {CLASSES.map((c) => (
+                <option key={c} value={c}>
+                  Class {c}
+                </option>
+              ))}
+            </select>
+            <select
+              value={subject}
+              onChange={(e) => changeSelection(studentClass, e.target.value)}
+              aria-label="Subject"
+              className="rounded-lg border border-surface-border bg-surface px-2 py-1.5 text-xs text-foreground outline-none sm:text-sm"
+            >
+              {SUBJECTS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </header>
 
       <main className="mx-auto flex w-full min-h-0 max-w-2xl flex-1 flex-col gap-6 overflow-x-hidden overflow-y-auto px-4 py-6 sm:gap-8 sm:px-6 sm:py-8">
         {messages.length === 0 && (
           <p className="mt-10 text-center text-sm text-foreground/40">
-            Try asking: &ldquo;What is photosynthesis?&rdquo;
+            Ask anything from your Class {studentClass} {subject} textbook.
           </p>
         )}
         {messages.map((m, i) => (
@@ -241,7 +284,7 @@ export default function Home() {
           <textarea
             className="max-h-40 min-w-0 flex-1 resize-none bg-transparent px-2 py-2 text-[15px] text-foreground outline-none placeholder:text-foreground/40"
             rows={1}
-            placeholder="Ask a question about Class 10 Science..."
+            placeholder={`Ask a question about Class ${studentClass} ${subject}...`}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
