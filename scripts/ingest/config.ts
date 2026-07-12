@@ -41,6 +41,17 @@ export const INGEST_TARGETS: IngestTarget[] = [
   // Class 10, confirmed against the live site (the 3rd/4th parts were
   // missed on the first pass).
   { class: 10, subject: "Social Science", bookCodes: ["jess1", "jess2", "jess3", "jess4"] },
+
+  // Classes 11-12: NCERT splits Science into separate Physics/Chemistry/
+  // Biology books (no combined "Science" subject at this level). Physics
+  // and Chemistry each have Part-I/Part-II volumes; Biology is one book.
+  { class: 11, subject: "Physics", bookCodes: ["keph1", "keph2"] },
+  { class: 11, subject: "Chemistry", bookCodes: ["kech1", "kech2"] },
+  { class: 11, subject: "Biology", bookCodes: ["kebo1"] },
+
+  { class: 12, subject: "Physics", bookCodes: ["leph1", "leph2"] },
+  { class: 12, subject: "Chemistry", bookCodes: ["lech1", "lech2"] },
+  { class: 12, subject: "Biology", bookCodes: ["lebo1"] },
 ];
 
 // Chapter titles are not hardcoded here — they're parsed from each PDF's own

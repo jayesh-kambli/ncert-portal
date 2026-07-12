@@ -3,6 +3,8 @@ const AGE_RANGE_BY_CLASS: Record<number, string> = {
   8: "13-14",
   9: "14-15",
   10: "15-16",
+  11: "16-17",
+  12: "17-18",
 };
 
 export function buildSystemPrompt(studentClass: number, subject: string): string {

@@ -61,6 +61,17 @@ function cleanPageText(raw: string): string {
     .join("\n");
 }
 
+// Equation-heavy pages in some PDFs use a custom math font with no
+// ToUnicode mapping, so pdf-parse pulls out Private Use Area codepoints
+// instead of real characters for most of the page — readable prose pages
+// and garbled ones separate very cleanly on printable-character ratio
+// (~90%+ vs. ~5-10%), so this drops pages that would otherwise pollute
+// the vector index with unsearchable, meaningless chunks.
+function isMostlyGarbled(text: string): boolean {
+  const printable = text.replace(/[^\x20-\x7E]/g, "").length;
+  return printable / text.length < 0.5;
+}
+
 // NCERT chapter-opener pages render the "CHAPTER N" marker as a rotated
 // sidebar label, so PDF text extraction can emit it either as "CHAPTER 1"
 // or reversed as "1  CHAPTER" (tab-joined), and — because it's a separate
@@ -145,10 +156,18 @@ async function extractChapter(bookCode: string, chapterNumber: number) {
 
   const pages: ExtractedPage[] = result.pages
     .map((p) => ({ pageNumber: p.num, text: cleanPageText(p.text) }))
-    .filter((p) => p.text.length > 0);
+    .filter((p) => p.text.length > 0 && !isMostlyGarbled(p.text));
 
   const firstPageLines = pages[0]?.text.split("\n") ?? [];
-  const title = extractTitle(firstPageLines, chapterNumber);
+  const rawTitle = extractTitle(firstPageLines, chapterNumber).trim();
+  // Safety net: some PDFs render a decorative opener-page title in a
+  // custom font with no proper ToUnicode mapping, so pdf-parse pulls out
+  // Private Use Area codepoints instead of real characters — renders as
+  // near-blank but isn't caught by a plain emptiness check. Both an empty
+  // result and this kind of garbled one are worse than the generic
+  // fallback, which at least reads as a real (if unlabeled) chapter.
+  const isGarbled = [...rawTitle].some((ch) => ch.codePointAt(0)! >= 0xe000);
+  const title = rawTitle && !isGarbled ? rawTitle : `Chapter ${chapterNumber}`;
 
   const chapter: ExtractedChapter = { chapterNumber, title, pages };
   await writeFile(outPath, JSON.stringify(chapter, null, 2));

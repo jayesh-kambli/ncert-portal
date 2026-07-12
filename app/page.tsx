@@ -2,13 +2,16 @@
 
 import { useRef, useState } from "react";
 import { Markdown } from "./components/Markdown";
-import { CLASSES, SUBJECTS } from "@/lib/subjects";
+import { CLASSES, SUBJECTS_BY_CLASS } from "@/lib/subjects";
 
 const SUBJECT_EMOJI: Record<string, string> = {
   Mathematics: "📐",
   Science: "🔬",
   "Social Science": "🌍",
   English: "📖",
+  Physics: "⚛️",
+  Chemistry: "🧪",
+  Biology: "🧬",
 };
 
 interface Source {
@@ -75,8 +78,13 @@ export default function Home() {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   function changeSelection(nextClass: number, nextSubject: string) {
+    // Class 11-12 have a different subject set than 7-10 (Physics/
+    // Chemistry/Biology instead of Science) — if the current subject
+    // doesn't exist for the newly picked class, fall back to its first.
+    const validSubjects = SUBJECTS_BY_CLASS[nextClass];
+    const resolvedSubject = validSubjects.includes(nextSubject) ? nextSubject : validSubjects[0];
     setStudentClass(nextClass);
-    setSubject(nextSubject);
+    setSubject(resolvedSubject);
     setMessages([]); // history from a different class/subject would confuse the model
   }
 
@@ -212,7 +220,7 @@ export default function Home() {
               ))}
             </div>
             <div className="flex flex-wrap gap-1.5 sm:justify-end">
-              {SUBJECTS.map((s) => (
+              {SUBJECTS_BY_CLASS[studentClass].map((s) => (
                 <button
                   key={s}
                   type="button"
