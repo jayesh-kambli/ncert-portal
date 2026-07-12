@@ -218,13 +218,11 @@ export default function Home() {
                   Class {c}
                   {(c === 11 || c === 12) && (
                     <span
-                      className={`rounded-full px-1.5 py-px text-[9px] font-semibold tracking-wide uppercase ${
-                        c === studentClass
-                          ? "bg-accent-foreground/20 text-accent-foreground"
-                          : "bg-accent/15 text-accent"
+                      className={`text-[9px] font-medium tracking-wide uppercase ${
+                        c === studentClass ? "text-accent-foreground/60" : "text-foreground/35"
                       }`}
                     >
-                      Beta
+                      beta
                     </span>
                   )}
                 </button>
