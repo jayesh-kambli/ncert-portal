@@ -35,3 +35,21 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+.thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-border) transparent;
+}
+
+.thin-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--surface-border);
+  border-radius: 9999px;
+}

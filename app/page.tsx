@@ -250,7 +250,8 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="mx-auto flex w-full min-h-0 max-w-2xl flex-1 flex-col gap-6 overflow-x-hidden overflow-y-auto px-4 py-6 sm:gap-8 sm:px-6 sm:py-8">
+      <main className="thin-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
+        <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-6 sm:gap-8 sm:px-6 sm:py-8">
         {messages.length === 0 && (
           <p className="mt-10 text-center text-sm text-foreground/40">
             Ask anything from your Class {studentClass} {subject} textbook.
@@ -307,6 +308,7 @@ export default function Home() {
           </div>
         ))}
         <div ref={bottomRef} />
+        </div>
       </main>
 
       <footer className="shrink-0 px-4 py-4 sm:px-6 sm:py-5">
