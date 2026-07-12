@@ -209,13 +209,24 @@ export default function Home() {
                   type="button"
                   onClick={() => changeSelection(c, subject)}
                   aria-pressed={c === studentClass}
-                  className={`rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
+                  className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
                     c === studentClass
                       ? "bg-accent text-accent-foreground"
                       : "bg-surface text-foreground/60 hover:text-foreground"
                   }`}
                 >
                   Class {c}
+                  {(c === 11 || c === 12) && (
+                    <span
+                      className={`rounded-full px-1.5 py-px text-[9px] font-semibold tracking-wide uppercase ${
+                        c === studentClass
+                          ? "bg-accent-foreground/20 text-accent-foreground"
+                          : "bg-accent/15 text-accent"
+                      }`}
+                    >
+                      Beta
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
