@@ -52,6 +52,18 @@ export const INGEST_TARGETS: IngestTarget[] = [
   { class: 12, subject: "Physics", bookCodes: ["leph1", "leph2"] },
   { class: 12, subject: "Chemistry", bookCodes: ["lech1", "lech2"] },
   { class: 12, subject: "Biology", bookCodes: ["lebo1"] },
+
+  // Commerce stream (Class 11-12 only). "Economics" pairs Indian Economic
+  // Development with Statistics for Economics at Class 11, but splits into
+  // separate Macro/Microeconomics books at Class 12 — that's NCERT's own
+  // syllabus structure, not a gap in this list.
+  { class: 11, subject: "Accountancy", bookCodes: ["keac1", "keac2"] },
+  { class: 11, subject: "Business Studies", bookCodes: ["kebs1"] },
+  { class: 11, subject: "Economics", bookCodes: ["keec1", "kest1"] },
+
+  { class: 12, subject: "Accountancy", bookCodes: ["leac1", "leac2"] },
+  { class: 12, subject: "Business Studies", bookCodes: ["lebs1", "lebs2"] },
+  { class: 12, subject: "Economics", bookCodes: ["leec1", "leec2"] },
 ];
 
 // Chapter titles are not hardcoded here — they're parsed from each PDF's own

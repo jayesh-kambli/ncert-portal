@@ -12,6 +12,9 @@ const SUBJECT_EMOJI: Record<string, string> = {
   Physics: "⚛️",
   Chemistry: "🧪",
   Biology: "🧬",
+  Accountancy: "📒",
+  "Business Studies": "💼",
+  Economics: "📈",
 };
 
 interface Source {

@@ -19,8 +19,8 @@ export const SUBJECTS_BY_CLASS: Record<number, string[]> = {
   8: ["Mathematics", "Science", "Social Science", "English"],
   9: ["Mathematics", "Science", "Social Science", "English"],
   10: ["Mathematics", "Science", "Social Science", "English"],
-  11: ["Physics", "Chemistry", "Biology"],
-  12: ["Physics", "Chemistry", "Biology"],
+  11: ["Physics", "Chemistry", "Biology", "Accountancy", "Business Studies", "Economics"],
+  12: ["Physics", "Chemistry", "Biology", "Accountancy", "Business Studies", "Economics"],
 };
 
 export const AVAILABLE_SUBJECTS: ClassSubject[] = CLASSES.flatMap((c) =>
