@@ -1,36 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NCERT Portal
 
-## Getting Started
+An AI study companion for NCERT students (Classes 7–12) that answers questions strictly from their own textbook — not a generic chatbot bolted onto a syllabus.
 
-First, run the development server:
+## How it works
+
+- **Agentic retrieval, not a fixed pipeline.** A single model drives the whole conversation and decides, turn by turn, whether it needs to search the textbook or already has enough context to answer — via OpenAI tool-calling rather than a separate classify → retrieve → generate pipeline. It can search more than once in a turn if the first pass isn't enough.
+- **Grounded answers.** Every syllabus claim has to come from a `search_textbook` result (or something already established earlier in the conversation) — the system prompt ([lib/rag/prompt.ts](lib/rag/prompt.ts)) explicitly forbids filling gaps with general knowledge, with one narrow, tagged exception for short out-of-syllabus factual questions.
+- **RAG over the real textbooks.** NCERT PDFs are downloaded, chunked, and embedded (`pgvector`) per class/subject; retrieval is scoped to exactly the book the student selected.
+- **Streaming responses** over SSE, with sources (chapter + page) surfaced alongside each answer.
+
+## Coverage
+
+| Classes | Subjects |
+|---|---|
+| 7–10 | Mathematics, Science, Social Science, English |
+| 11–12 | Physics, Chemistry, Biology, Accountancy, Business Studies, Economics |
+
+## Stack
+
+Next.js (App Router) · TypeScript · OpenAI (gpt-4o + text-embedding-3-small) · Postgres/pgvector · Drizzle ORM
+
+## Getting started
 
 ```bash
+npm install
+cp .env.example .env   # fill in DATABASE_URL and OPENAI_API_KEY
+npm run db:migrate
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+To ingest a textbook into the database (see [scripts/ingest](scripts/ingest)):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run ingest:download
+npm run ingest:extract
+npm run ingest:embed
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See [DEPLOYMENT.md](DEPLOYMENT.md) for production deployment notes.
