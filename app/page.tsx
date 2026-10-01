@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Markdown } from "./components/Markdown";
+import { CreditsBadge } from "./components/CreditsBadge";
 import { CLASSES, SUBJECTS_BY_CLASS, classLabel, materialLabel } from "@/lib/subjects";
 
 const SUBJECT_EMOJI: Record<string, string> = {
@@ -203,6 +204,7 @@ export default function Home() {
             <p className="text-xs text-foreground/55 sm:text-sm">
               Ask a question from the {subject} {materialLabel(studentClass)}.
             </p>
+            <CreditsBadge />
           </div>
 
           <div className="flex flex-col gap-2 sm:items-end">
