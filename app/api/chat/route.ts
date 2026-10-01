@@ -1,7 +1,7 @@
 import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions";
 import { getOpenAI, CHAT_MODEL } from "@/lib/openai";
 import { retrieveChunks } from "@/lib/rag/retrieve";
-import { buildSystemPrompt } from "@/lib/rag/prompt";
+import { buildSystemPrompt, sourceDescription } from "@/lib/rag/prompt";
 import { sseStream } from "@/lib/rag/stream";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { createTagStreamParser } from "@/lib/rag/tag-stream-parser";
@@ -33,14 +33,14 @@ function buildSearchTool(studentClass: number, subject: string): ChatCompletionT
     type: "function",
     function: {
       name: "search_textbook",
-      description: `Search the student's Class ${studentClass} ${subject} NCERT textbook for passages relevant to a specific question, topic, or example. Returns the most relevant excerpts found, or none if nothing matches.`,
+      description: `Search the student's ${sourceDescription(studentClass, subject)} for passages relevant to a specific question, topic, or example. Returns the most relevant excerpts found, or none if nothing matches.`,
       parameters: {
         type: "object",
         properties: {
           query: {
             type: "string",
             description:
-              "A focused search query describing exactly what information is needed — a concept, definition, process, or example.",
+              "A focused search query describing exactly what information is needed — a concept, definition, provision, process, or example.",
           },
         },
         required: ["query"],

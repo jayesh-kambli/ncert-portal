@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Markdown } from "./components/Markdown";
-import { CLASSES, SUBJECTS_BY_CLASS } from "@/lib/subjects";
+import { CLASSES, SUBJECTS_BY_CLASS, classLabel, materialLabel } from "@/lib/subjects";
 
 const SUBJECT_EMOJI: Record<string, string> = {
   Mathematics: "📐",
@@ -15,7 +15,7 @@ const SUBJECT_EMOJI: Record<string, string> = {
   Accountancy: "📒",
   "Business Studies": "💼",
   Economics: "📈",
-  "CA: Taxation": "🧾",
+  Taxation: "🧾",
 };
 
 interface Source {
@@ -201,7 +201,7 @@ export default function Home() {
               NCERT Study Tutor
             </h1>
             <p className="text-xs text-foreground/55 sm:text-sm">
-              Ask a question from the {subject} textbook.
+              Ask a question from the {subject} {materialLabel(studentClass)}.
             </p>
           </div>
 
@@ -219,7 +219,7 @@ export default function Home() {
                       : "bg-surface text-foreground/60 hover:text-foreground"
                   }`}
                 >
-                  Class {c}
+                  {classLabel(c)}
                   {(c === 11 || c === 12) && (
                     <span
                       className={`text-[9px] font-medium tracking-wide uppercase ${
@@ -258,7 +258,7 @@ export default function Home() {
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-6 sm:gap-8 sm:px-6 sm:py-8">
         {messages.length === 0 && (
           <p className="mt-10 text-center text-sm text-foreground/40">
-            Ask anything from your Class {studentClass} {subject} textbook.
+            Ask anything from your {classLabel(studentClass)} {subject} {materialLabel(studentClass)}.
           </p>
         )}
         {messages.map((m, i) => (
@@ -326,7 +326,7 @@ export default function Home() {
           <textarea
             className="max-h-40 min-w-0 flex-1 resize-none bg-transparent px-2 py-2 text-[15px] text-foreground outline-none placeholder:text-foreground/40"
             rows={1}
-            placeholder={`Ask a question about Class ${studentClass} ${subject}...`}
+            placeholder={`Ask a question about ${classLabel(studentClass)} ${subject}...`}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {

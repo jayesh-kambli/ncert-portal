@@ -7,6 +7,7 @@ import { PDFParse } from "pdf-parse";
 import { db } from "../../lib/db/client";
 import { chunks as chunksTable, type NewChunk } from "../../lib/db/schema";
 import { embedTexts } from "../../lib/openai";
+import { CA_CLASS } from "../../lib/subjects";
 import { chunkText } from "./chunk";
 
 // Ingests a folder of PDFs that only exist on the local machine (i.e. not
@@ -14,7 +15,9 @@ import { chunkText } from "./chunk";
 // straight into the chunks table — extract, chunk, embed and insert in one
 // pass, no intermediate data/ files.
 //
-//   npm run ingest:local -- --dir "C:\path\to\pdfs" --class 12 --subject "CA: Taxation"
+//   npm run ingest:local -- --dir "C:\path\to\pdfs" --class CA --subject "Taxation"
+//
+// --class takes a school class number, or "CA" (stored as CA_CLASS).
 //
 // Each PDF becomes one chapter. The chapter title is the file name (minus
 // extension and any leading "01 - " style numbering); the chapter number is
@@ -35,17 +38,17 @@ const { values: args } = parseArgs({
 function usage(message: string): never {
   console.error(message);
   console.error(
-    `\nUsage: npm run ingest:local -- --dir <pdf folder> --class <number> --subject "<name>" [--dry-run]`
+    `\nUsage: npm run ingest:local -- --dir <pdf folder> --class <number|CA> --subject "<name>" [--dry-run]`
   );
   process.exit(1);
 }
 
 if (!args.dir) usage("Missing --dir");
-if (!args.class || !/^\d+$/.test(args.class)) usage("Missing or non-numeric --class");
+if (!args.class || !/^(\d+|ca)$/i.test(args.class)) usage('Missing --class (a number, or "CA")');
 if (!args.subject?.trim()) usage("Missing --subject");
 
 const PDF_ROOT = path.resolve(args.dir);
-const CLASS = Number(args.class);
+const CLASS = args.class.toLowerCase() === "ca" ? CA_CLASS : Number(args.class);
 const SUBJECT = args.subject.trim();
 const DRY_RUN = args["dry-run"];
 
