@@ -20,7 +20,10 @@ export const SUBJECTS_BY_CLASS: Record<number, string[]> = {
   9: ["Mathematics", "Science", "Social Science", "English"],
   10: ["Mathematics", "Science", "Social Science", "English"],
   11: ["Physics", "Chemistry", "Biology", "Accountancy", "Business Studies", "Economics"],
-  12: ["Physics", "Chemistry", "Biology", "Accountancy", "Business Studies", "Economics"],
+  // "CA: Taxation" is CA (ICAI) study material, not an NCERT book — ingested
+  // from local PDFs via scripts/ingest/ingest-local.ts and filed under Class 12
+  // since every chunk row needs a class.
+  12: ["Physics", "Chemistry", "Biology", "Accountancy", "Business Studies", "Economics", "CA: Taxation"],
 };
 
 export const AVAILABLE_SUBJECTS: ClassSubject[] = CLASSES.flatMap((c) =>

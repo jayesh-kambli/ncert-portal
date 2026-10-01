@@ -14,7 +14,8 @@
     "db:migrate": "drizzle-kit migrate",
     "ingest:download": "tsx scripts/ingest/download-pdfs.ts",
     "ingest:extract": "tsx scripts/ingest/extract-text.ts",
-    "ingest:embed": "tsx scripts/ingest/chunk-and-embed.ts"
+    "ingest:embed": "tsx scripts/ingest/chunk-and-embed.ts",
+    "ingest:local": "tsx scripts/ingest/ingest-local.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",

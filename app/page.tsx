@@ -15,6 +15,7 @@ const SUBJECT_EMOJI: Record<string, string> = {
   Accountancy: "📒",
   "Business Studies": "💼",
   Economics: "📈",
+  "CA: Taxation": "🧾",
 };
 
 interface Source {
